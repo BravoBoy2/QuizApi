@@ -19,7 +19,7 @@ public class UserServiceImpl implements UserService {
     @PostConstruct
     private void createAdminUser(){
         User optionalUser = userRepository.findByRole(UserRole.ADMIN);
-        if(optionalUser == null){
+        if(optionalUser != null){
             User user = new User();
 
             user.setName("admin");
