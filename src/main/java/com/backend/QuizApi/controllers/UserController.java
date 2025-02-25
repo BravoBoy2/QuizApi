@@ -56,4 +56,20 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PostMapping("/login")
+    public ResponseEntity<Map<String, Object>> login (@RequestBody User user) {
+        Map<String, Object> response = new HashMap<>();
+        User userdb = userService.login(user);
+        if (userdb == null) {
+            response.put("message", "Invalid email or password");
+           return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+
+        //returning user
+        UserDTO userDTO = new UserDTO(userdb.getEmail(), userdb.getName());
+        response.put("message", "User logged in successfully");
+        response.put("user", userDTO);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
 }

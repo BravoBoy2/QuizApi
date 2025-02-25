@@ -9,4 +9,6 @@ public interface UserService {
     //user check with email
     Boolean hasUserWithEmail(String email);
 
+    User login (User user);
+
 }
