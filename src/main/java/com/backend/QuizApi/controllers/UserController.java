@@ -48,7 +48,7 @@ public class UserController {
         }
 
         // Convert User entity to DTO
-        UserDTO userDTO = new UserDTO(newUser.getEmail(), newUser.getName());
+        UserDTO userDTO = new UserDTO(newUser.getEmail(), newUser.getName(),newUser.getRole());
 
         response.put("message", "User created successfully");
         response.put("user", userDTO); // Send only safe fields
@@ -57,19 +57,14 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login (@RequestBody User user) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> login (@RequestBody User user) {
         User userdb = userService.login(user);
         if (userdb == null) {
-            response.put("message", "Invalid email or password");
-           return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+       return new ResponseEntity<>("Invalid email or password", HttpStatus.UNAUTHORIZED);
         }
 
         //returning user
-        UserDTO userDTO = new UserDTO(userdb.getEmail(), userdb.getName());
-        response.put("message", "User logged in successfully");
-        response.put("user", userDTO);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(userdb, HttpStatus.OK);
     }
 
 }
