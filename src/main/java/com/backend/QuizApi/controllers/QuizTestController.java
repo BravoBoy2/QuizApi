@@ -1,11 +1,14 @@
 package com.backend.QuizApi.controllers;
 
+import com.backend.QuizApi.DTO.QuizTestDTO;
 import com.backend.QuizApi.services.Quiz.QuizTestService;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/quiz")
+@CrossOrigin("*")
 public class QuizTestController {
 
     private final QuizTestService quizTestService;
@@ -14,4 +17,14 @@ public class QuizTestController {
         this.quizTestService = quizTestService;
     }
 
+    @PostMapping()
+    public ResponseEntity<?> createQuiz(@RequestBody QuizTestDTO quizTestDTO) {
+        try {
+            return new ResponseEntity<>
+                    (quizTestService.createQuizTest(quizTestDTO),
+                            HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
 }
