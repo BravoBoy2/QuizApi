@@ -27,4 +27,16 @@ public class QuizTestController {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
+
+    @PostMapping("/createQuestion")
+    public ResponseEntity<?> addQuestionToQuiz(@RequestBody QuizTestDTO quizTestDTO) {
+        try {
+            return new ResponseEntity<>
+                    (quizTestService.createQuizTest(quizTestDTO),
+                            HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
 }

@@ -1,7 +1,6 @@
 package com.backend.QuizApi.DTO;
 
 import lombok.Data;
-
 import java.sql.Time;
 
 @Data
