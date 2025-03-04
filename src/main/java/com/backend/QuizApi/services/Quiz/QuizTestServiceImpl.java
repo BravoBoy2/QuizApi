@@ -2,26 +2,22 @@ package com.backend.QuizApi.services.Quiz;
 
 import com.backend.QuizApi.DTO.QuizTestDTO;
 import com.backend.QuizApi.entities.QuizTest;
-import com.backend.QuizApi.repositories.OptionRepository;
-import com.backend.QuizApi.repositories.QuestionRepository;
 import com.backend.QuizApi.repositories.QuizTestRepository;
 import org.springframework.stereotype.Service;
 
+import java.sql.Time;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Service
 public class QuizTestServiceImpl implements QuizTestService {
 
     private final QuizTestRepository quizTestRepository;
-    private QuestionRepository questionRepository;
-    private OptionRepository optionRepository;
 
 
-    public QuizTestServiceImpl(QuizTestRepository quizTestRepository,
-                               QuestionRepository questionRepository,
-                               OptionRepository optionRepository) {
+    public QuizTestServiceImpl(QuizTestRepository quizTestRepository) {
         this.quizTestRepository = quizTestRepository;
-        this.questionRepository = questionRepository;
     }
 
     // Create a new quiz
@@ -33,6 +29,29 @@ public class QuizTestServiceImpl implements QuizTestService {
 
         return quizTestRepository.save(quizTest).getDTO();
     }
+
+    @Override
+    public List<QuizTestDTO> getAllQuizzes() {
+        List<QuizTest> quizzes = quizTestRepository.findAll(); // Fetch all quizzes
+
+        return quizzes.stream()
+                .map(quizTest -> {
+                    long totalMillis = (quizTest.getTime() != null)
+                            ? quizTest.getTime().getTime() : 600_000; // Default 10 minutes in milliseconds
+
+                    int numQuestions = quizTest.getQuestionList().size();
+                    long timePerQuestionMillis = (numQuestions == 0) ? 0 : totalMillis /  numQuestions;
+
+                    quizTest.setTime(new Time(timePerQuestionMillis)); // Adjust time per question
+
+                    return quizTest.getDTO(); // Convert to DTO
+                })
+                .collect(Collectors.toList()); // Return List<QuizTestDTO>
+    }
+
+
+
+
 
 
 

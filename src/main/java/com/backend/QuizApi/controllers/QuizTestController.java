@@ -39,4 +39,14 @@ public class QuizTestController {
         }
     }
 
+    @GetMapping()
+    public ResponseEntity<?> getAllQuizzes() {
+        try {
+            return new ResponseEntity<>(quizTestService.getAllQuizzes(), HttpStatus.OK);
+
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+
+        }
+    }
 }
