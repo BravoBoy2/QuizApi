@@ -1,6 +1,7 @@
 package com.backend.QuizApi.services.Quiz;
 
 import com.backend.QuizApi.DTO.QuizTestDTO;
+import com.backend.QuizApi.DTO.QuestionDTO;
 
 import java.util.List;
 
@@ -8,8 +9,7 @@ public interface QuizTestService {
 
     QuizTestDTO createQuizTest(QuizTestDTO quizTestDTO);
 
-//    QuestionDTO createQuestionInQuiz(QuestionDTO questionDTO);
+    List<QuizTestDTO> getAllQuizzes();
 
-    //Listing quizzes with time for each questions within the quiz
-   List<QuizTestDTO> getAllQuizzes();
+    QuizTestDTO addQuestionsToQuiz(Long quizId, List<QuestionDTO> questionDTOs);
 }

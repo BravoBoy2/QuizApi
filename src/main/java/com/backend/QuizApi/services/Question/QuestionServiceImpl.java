@@ -14,12 +14,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
+@Service
 public class QuestionServiceImpl implements QuestionService {
 
     private final OptionRepository optionRepository;
     private final QuestionRepository questionRepository;
     private final QuizTestRepository quizTestRepository;
+    private static final Logger logger = LoggerFactory.getLogger(QuestionServiceImpl.class);
 
     public QuestionServiceImpl(OptionRepository optionRepository,
                                QuestionRepository questionRepository,
@@ -30,6 +35,7 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     public QuestionDTO createQuestion(QuestionDTO questionDTO) {
+        logger.info("Creating question with data: {}", questionDTO);
         Optional<QuizTest> optionalQuizTest = quizTestRepository.findById(questionDTO.getQuiz().getId());
         if (optionalQuizTest.isEmpty()) {
             throw new EntityNotFoundException("Quiz not found");
@@ -39,10 +45,16 @@ public class QuestionServiceImpl implements QuestionService {
 
         Question question = new Question();
         question.setQuiz(quiz);
-        question.setQuestion(questionDTO.getQuestion());
+        
+        // Ensure the questionText is properly set
+        if (questionDTO.getQuestionText() == null || questionDTO.getQuestionText().trim().isEmpty()) {
+            throw new IllegalArgumentException("Question text cannot be empty");
+        }
+        question.setQuestionText(questionDTO.getQuestionText());
+        
         question.setType(questionDTO.getType());
+        question.setCorrectAnswer(questionDTO.getCorrectAnswer());
 
-        // Convert options directly inside the method
         if ((question.getType() == QuestionType.MCQ || question.getType() == QuestionType.SINGLE)
                 && (questionDTO.getOptions() == null || questionDTO.getOptions().isEmpty())) {
             throw new IllegalArgumentException("Options are required for MCQ and single select questions.");
@@ -52,13 +64,14 @@ public class QuestionServiceImpl implements QuestionService {
             Option option = new Option();
             option.setQuestion(question);
             option.setAnswerText(optionDTO.getAnswerText());
-            option.setCorrect(optionDTO.isCorrect());
+            option.setIsCorrect(optionDTO.isCorrect());
             return option;
         }).collect(Collectors.toList());
 
         question.setOptions(optionRepository.saveAll(options));
 
-        // Save question with options
-        return questionRepository.save(question).getQuestionDTO();
+        QuestionDTO createdQuestionDTO = questionRepository.save(question).getQuestionDTO();
+        logger.info("Successfully created question: {}", createdQuestionDTO);
+        return createdQuestionDTO;
     }
 }

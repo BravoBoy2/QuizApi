@@ -4,8 +4,8 @@ import com.backend.QuizApi.DTO.QuizTestDTO;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.sql.Time;
+import java.util.ArrayList;
 import java.util.List;
-
 
 @Entity
 @Data
@@ -24,19 +24,14 @@ public class QuizTest {
     @OneToMany(mappedBy = "quiz",
             cascade = CascadeType.ALL,
             fetch = FetchType.LAZY)
-    private List<Question> questionList;
-
+    private List<Question> questions = new ArrayList<>(); // Initialize with empty list
 
     public QuizTestDTO getDTO() {
         QuizTestDTO quizTestDTO = new QuizTestDTO();
-
         quizTestDTO.setId(id);
         quizTestDTO.setTitle(title);
         quizTestDTO.setDescription(description);
         quizTestDTO.setTime(time);
-
         return quizTestDTO;
     }
-
-
 }

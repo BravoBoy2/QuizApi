@@ -2,6 +2,7 @@ package com.backend.QuizApi.DTO;
 
 import lombok.Data;
 import java.sql.Time;
+import java.util.List;
 
 @Data
 public class QuizTestDTO {
@@ -9,4 +10,5 @@ public class QuizTestDTO {
     private String title;
     private String description;
     private Time time;
+    private List<QuestionDTO> questions;
 }

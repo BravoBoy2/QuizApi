@@ -16,7 +16,7 @@ public class Question {
     private long id;
 
     @Column(columnDefinition = "TEXT")
-    private String question; // Question text
+    private String questionText; // Question text - this is the only field we should have for the question text
 
     @Enumerated(EnumType.STRING)
     private QuestionType type; //Type of question
@@ -30,21 +30,17 @@ public class Question {
             fetch = FetchType.LAZY)
     private List<Option> options;   //Possible answer for MCQ and & single type
 
-    private String CorrectAnswer; // Answer for TEXT type (if applicable)
+    private String correctAnswer; // Answer for TEXT type (if applicable)
 
-
-    public QuestionDTO getQuestionDTO(){
+    public QuestionDTO getQuestionDTO() {
         QuestionDTO questionDTO = new QuestionDTO();
-        questionDTO.setQuestion(question);
-
         questionDTO.setId(id);
-        questionDTO.setQuestion(question);
+        questionDTO.setQuestionText(questionText);
         questionDTO.setType(type);
-        questionDTO.setCorrectAnswer(CorrectAnswer);
+        questionDTO.setCorrectAnswer(correctAnswer);
         questionDTO.setOptions(options);
+        questionDTO.setQuiz(quiz);
 
         return questionDTO;
-
     }
-
 }

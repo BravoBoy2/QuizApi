@@ -11,11 +11,9 @@ import java.util.List;
 public class QuestionDTO {
 
     private long id;
-    private String question;
+    private String questionText;
     private QuestionType type;
     private QuizTest quiz;
     private List<Option> options;
-    private String CorrectAnswer;
-
-
+    private String correctAnswer;
 }
