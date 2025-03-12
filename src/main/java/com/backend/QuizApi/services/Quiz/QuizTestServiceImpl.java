@@ -1,6 +1,7 @@
 package com.backend.QuizApi.services.Quiz;
 
 import com.backend.QuizApi.DTO.QuestionDTO;
+import com.backend.QuizApi.DTO.QuizDetailsDTO;
 import com.backend.QuizApi.DTO.QuizTestDTO;
 import com.backend.QuizApi.entities.Option;
 import com.backend.QuizApi.entities.Question;
@@ -10,14 +11,11 @@ import com.backend.QuizApi.repositories.OptionRepository;
 import com.backend.QuizApi.repositories.QuestionRepository;
 import com.backend.QuizApi.repositories.QuizTestRepository;
 import jakarta.persistence.EntityNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +24,6 @@ public class QuizTestServiceImpl implements QuizTestService {
     private final QuizTestRepository quizTestRepository;
     private final QuestionRepository questionRepository;
     private final OptionRepository optionRepository;
-    private static final Logger logger = LoggerFactory.getLogger(QuizTestServiceImpl.class);
 
     public QuizTestServiceImpl(QuizTestRepository quizTestRepository, 
                                QuestionRepository questionRepository, 
@@ -54,66 +51,131 @@ public class QuizTestServiceImpl implements QuizTestService {
 
     @Transactional
     public QuizTestDTO addQuestionsToQuiz(Long quizId, List<QuestionDTO> questionDTOs) {
-        logger.info("Adding questions to quiz with ID: {}", quizId);
-        logger.info("Questions to add: {}", questionDTOs);
+        QuizTest quiz = quizTestRepository.findById(quizId)
+            .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + quizId));
         
-        Optional<QuizTest> optionalQuizTest = quizTestRepository.findById(quizId);
-        if (optionalQuizTest.isEmpty()) {
-            throw new EntityNotFoundException("Quiz not found with ID: " + quizId);
-        }
-
-        QuizTest quiz = optionalQuizTest.get();
-        
+        // Initialize questions list inline if needed
         if (quiz.getQuestions() == null) {
             quiz.setQuestions(new ArrayList<>());
         }
         
-        for (QuestionDTO questionDTO : questionDTOs) {
-            Question question = new Question();
-            question.setQuiz(quiz);
-            
-            // Make sure we're setting the text correctly here
-            if (questionDTO.getQuestionText() != null && !questionDTO.getQuestionText().isEmpty()) {
-                question.setQuestionText(questionDTO.getQuestionText());
-            } else {
-                throw new IllegalArgumentException("Question text cannot be empty");
-            }
-            
-            question.setType(questionDTO.getType());
-            question.setCorrectAnswer(questionDTO.getCorrectAnswer());
-            
-            if (questionDTO.getType() == QuestionType.TEXT) {
-                // For TEXT questions, no options needed
-                if (questionDTO.getCorrectAnswer() == null || questionDTO.getCorrectAnswer().isEmpty()) {
-                    throw new IllegalArgumentException("Correct answer is required for TEXT questions.");
-                }
-                question = questionRepository.save(question);
-            } else {
-                // For MCQ and SINGLE questions, options are required
-                if (questionDTO.getOptions() == null || questionDTO.getOptions().isEmpty()) {
-                    throw new IllegalArgumentException("Options are required for MCQ and SINGLE questions.");
-                }
-                
-                question = questionRepository.save(question);
-                
-                List<Option> options = new ArrayList<>();
-                for (Option optionDTO : questionDTO.getOptions()) {
-                    Option option = new Option();
-                    option.setQuestion(question);
-                    option.setAnswerText(optionDTO.getAnswerText());
-                    option.setIsCorrect(optionDTO.isCorrect());
-                    options.add(optionRepository.save(option));
-                }
-                
-                question.setOptions(options);
-                question = questionRepository.save(question);
-            }
-            
-            quiz.getQuestions().add(question);
+        // Create all questions at once using streams
+        List<Question> questions = questionDTOs.stream()
+            .map(questionDTO -> createQuestionFromDTO(questionDTO, quiz))
+            .collect(Collectors.toList());
+        
+        // Add all questions to quiz
+        quiz.getQuestions().addAll(questions);
+        
+        // Save the quiz with all its questions in one operation
+        QuizTest savedQuiz = quizTestRepository.save(quiz);
+        return savedQuiz.getDTO();
+    }
+    
+    private Question createQuestionFromDTO(QuestionDTO questionDTO, QuizTest quiz) {
+        validateQuestionData(questionDTO);
+        
+        Question question = new Question();
+        question.setQuiz(quiz);
+        question.setQuestionText(questionDTO.getQuestionText());
+        question.setType(questionDTO.getType());
+        question.setCorrectAnswer(questionDTO.getCorrectAnswer());
+        
+        question = questionRepository.save(question);
+        
+        if (questionDTO.getType() != QuestionType.TEXT) {
+            addOptionsToQuestion(question, questionDTO.getOptions());
         }
         
-        QuizTest savedQuiz = quizTestRepository.save(quiz);
-        logger.info("Successfully added questions to quiz. Updated quiz: {}", savedQuiz);
-        return savedQuiz.getDTO();
+        return question;
+    }
+    
+    private void validateQuestionData(QuestionDTO questionDTO) {
+        // Validate question text for all question types
+        if (questionDTO.getQuestionText() == null || questionDTO.getQuestionText().isEmpty()) {
+            throw new IllegalArgumentException("Question text cannot be empty");
+        }
+        
+        // Validate based on question type
+        switch (questionDTO.getType()) {
+            case TEXT:
+                if (questionDTO.getCorrectAnswer() == null || questionDTO.getCorrectAnswer().isEmpty()) {
+                    throw new IllegalArgumentException("Correct answer is required for TEXT questions");
+                }
+                break;
+            case MCQ:
+            case SINGLE:
+                if (questionDTO.getOptions() == null || questionDTO.getOptions().isEmpty()) {
+                    throw new IllegalArgumentException("Options are required for " + questionDTO.getType() + " questions");
+                }
+                break;
+        }
+    }
+    
+    private void addOptionsToQuestion(Question question, List<Option> optionDTOs) {
+        // Create the list once and save all options in a batch operation
+        List<Option> options = optionDTOs.stream()
+            .map(optionDTO -> {
+                Option option = new Option();
+                option.setQuestion(question);
+                option.setAnswerText(optionDTO.getAnswerText());
+                option.setIsCorrect(optionDTO.isCorrect());
+                return option;
+            })
+            .collect(Collectors.toList());
+        
+        // Set options to the question
+        question.setOptions(options);
+        
+        // Save all options at once using saveAll instead of individual saves
+        optionRepository.saveAll(options);
+    }
+
+    public QuizDetailsDTO getAllQuestionsByQuiz(long id) {
+        return quizTestRepository.findById(id)
+            .map(quiz -> {
+                QuizDetailsDTO quizDetailsDTO = new QuizDetailsDTO();
+                quizDetailsDTO.setQuizTestDTO(quiz.getDTO());
+                
+                // Use the existing list or an empty list if null
+                quizDetailsDTO.setQuestions(
+                    quiz.getQuestions() == null ? 
+                    List.of() :  // Use immutable empty list instead of new ArrayList<>()
+                    quiz.getQuestions().stream()
+                        .map(this::mapQuestionToDTO)
+                        .collect(Collectors.toList())
+                );
+                
+                return quizDetailsDTO;
+            })
+            .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + id));
+    }
+    
+    private QuestionDTO mapQuestionToDTO(Question question) {
+        QuestionDTO dto = new QuestionDTO();
+        // Only include the necessary data for the frontend, not the internal ID
+        // dto.setId(question.getId()); // Removing this line to avoid exposing internal ID
+        dto.setQuestionText(question.getQuestionText());
+        dto.setType(question.getType());
+        dto.setCorrectAnswer(question.getCorrectAnswer());
+        
+        // Create new Option objects instead of using the entity directly
+        if (question.getOptions() != null) {
+            List<Option> optionDTOs = question.getOptions().stream()
+                .map(option -> {
+                    Option optionDTO = new Option();
+                    // Don't set the ID to avoid exposing it
+                    optionDTO.setAnswerText(option.getAnswerText());
+                    optionDTO.setIsCorrect(option.isCorrect());
+                    // Don't set the question reference to avoid circular references
+                    return optionDTO;
+                })
+                .collect(Collectors.toList());
+            dto.setOptions(optionDTOs);
+        } else {
+            dto.setOptions(List.of());
+        }
+        
+        return dto;
     }
 }
