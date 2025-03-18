@@ -41,4 +41,12 @@ public interface QuizTestService {
      * @return QuizDetailsDTO containing the quiz and all its questions
      */
     QuizDetailsDTO getAllQuestionsByQuiz(long id);
+    
+    /**
+     * Creates a batch of new quiz tests
+     * 
+     * @param quizTestDTOs The list of DTOs containing quiz test information
+     * @return List of created quiz tests as DTOs
+     */
+    List<QuizTestDTO> createQuizzesBatch(List<QuizTestDTO> quizTestDTOs);
 }

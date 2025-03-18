@@ -178,4 +178,24 @@ public class QuizTestServiceImpl implements QuizTestService {
         
         return dto;
     }
+
+    @Transactional
+    public List<QuizTestDTO> createQuizzesBatch(List<QuizTestDTO> quizTestDTOs) {
+        List<QuizTest> quizTests = quizTestDTOs.stream()
+                .map(dto -> {
+                    QuizTest quizTest = new QuizTest();
+                    quizTest.setTitle(dto.getTitle());
+                    quizTest.setDescription(dto.getDescription());
+                    quizTest.setTime(dto.getTime());
+                    return quizTest;
+                })
+                .collect(Collectors.toList());
+        
+        // Save all quizzes in a batch operation
+        quizTestRepository.saveAll(quizTests);
+        
+        return quizTests.stream()
+                .map(QuizTest::getDTO)
+                .collect(Collectors.toList());
+    }
 }

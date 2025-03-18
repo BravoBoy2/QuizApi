@@ -1,15 +1,15 @@
 package com.backend.QuizApi.controllers;
 
 import com.backend.QuizApi.DTO.QuestionDTO;
-import com.backend.QuizApi.DTO.QuizDetailsDTO;
 import com.backend.QuizApi.DTO.QuizTestDTO;
 import com.backend.QuizApi.services.Quiz.QuizTestService;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api/quiz")
@@ -59,6 +59,40 @@ public class QuizTestController {
     public ResponseEntity<?> getQuizWithQuestions(@PathVariable long id) {
         try {
             return new ResponseEntity<>(quizTestService.getAllQuestionsByQuiz(id), HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    /**
+     * Create multiple quizzes in a single batch request
+     * 
+     * @param quizTestDTOs List of quizzes to create
+     * @return A list of created quizzes
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<?> createQuizzesBatch(@RequestBody List<QuizTestDTO> quizTestDTOs) {
+        try {
+            return new ResponseEntity<>(quizTestService.createQuizzesBatch(quizTestDTOs), HttpStatus.CREATED);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+    
+    /**
+     * Add questions to multiple quizzes in a single batch request
+     * 
+     * @param batchData Map with quiz IDs as keys and lists of questions as values
+     * @return A list of updated quizzes
+     */
+    @PostMapping("/batch/questions")
+    public ResponseEntity<?> addQuestionsToBatchQuizzes(@RequestBody Map<Long, List<QuestionDTO>> batchData) {
+        try {
+            List<QuizTestDTO> results = new ArrayList<>();
+            for (Map.Entry<Long, List<QuestionDTO>> entry : batchData.entrySet()) {
+                results.add(quizTestService.addQuestionsToQuiz(entry.getKey(), entry.getValue()));
+            }
+            return new ResponseEntity<>(results, HttpStatus.CREATED);
         } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
