@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz API Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      .container {
+        display: flex;
+        gap: 20px;
+      }
+      .panel {
+        flex: 1;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 15px;
+      }
+      h3 {
+        margin-top: 0;
+      }
+      textarea {
+        width: 100%;
+        height: 300px;
+        font-family: monospace;
+        margin-bottom: 10px;
+      }
+      button {
+        padding: 8px 15px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      input {
+        padding: 8px;
+        margin-bottom: 10px;
+        width: 100%;
+      }
+      .response {
+        background-color: #f8f8f8;
+        padding: 10px;
+        border-radius: 4px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Quiz API Tester</h1>
+
+    <div class="container">
+      <div class="panel">
+        <h3>Get Quiz Template</h3>
+        <div>
+          <label for="quizId">Quiz ID:</label>
+          <input type="number" id="quizId" value="9" />
+        </div>
+        <button onclick="getTemplate()">Get Template</button>
+        <button onclick="getTestTemplate()">Get Detailed Template</button>
+        <div class="response" id="templateResponse"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Submit Quiz</h3>
+        <textarea
+          id="submissionJson"
+          placeholder="Paste your JSON submission here..."
+        ></textarea>
+        <button onclick="submitQuiz()">Submit Quiz</button>
+        <div class="response" id="submissionResponse"></div>
+      </div>
+    </div>
+
+    <script>
+      function getTemplate() {
+        const quizId = document.getElementById("quizId").value;
+        fetch(`/api/quiz-submissions/template/${quizId}`)
+          .then((response) => {
+            if (!response.ok)
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+          })
+          .then((data) => {
+            document.getElementById(
+              "templateResponse"
+            ).innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById("submissionJson").value = JSON.stringify(
+              data,
+              null,
+              2
+            );
+          })
+          .catch((error) => {
+            document.getElementById(
+              "templateResponse"
+            ).innerHTML = `<pre style="color: red">Error: ${error.message}</pre>`;
+          });
+      }
+
+      function getTestTemplate() {
+        const quizId = document.getElementById("quizId").value;
+        fetch(`/api/quiz-submissions/test-template/${quizId}`)
+          .then((response) => {
+            if (!response.ok)
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+          })
+          .then((data) => {
+            document.getElementById(
+              "templateResponse"
+            ).innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById("submissionJson").value = JSON.stringify(
+              data.submissionTemplate,
+              null,
+              2
+            );
+          })
+          .catch((error) => {
+            document.getElementById(
+              "templateResponse"
+            ).innerHTML = `<pre style="color: red">Error: ${error.message}</pre>`;
+          });
+      }
+
+      function submitQuiz() {
+        const submissionJson = document.getElementById("submissionJson").value;
+        try {
+          const data = JSON.parse(submissionJson);
+          fetch("/api/quiz-submissions/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: submissionJson,
+          })
+            .then((response) => {
+              if (!response.ok) {
+                return response.text().then((text) => {
+                  throw new Error(
+                    `HTTP error! Status: ${response.status}, Message: ${text}`
+                  );
+                });
+              }
+              return response.json();
+            })
+            .then((data) => {
+              document.getElementById(
+                "submissionResponse"
+              ).innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            })
+            .catch((error) => {
+              document.getElementById(
+                "submissionResponse"
+              ).innerHTML = `<pre style="color: red">Error: ${error.message}</pre>`;
+            });
+        } catch (e) {
+          document.getElementById(
+            "submissionResponse"
+          ).innerHTML = `<pre style="color: red">Invalid JSON: ${e.message}</pre>`;
+        }
+      }
+    </script>
+  </body>
+</html>

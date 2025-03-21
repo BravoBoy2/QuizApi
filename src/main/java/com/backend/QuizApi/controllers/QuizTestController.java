@@ -2,7 +2,11 @@ package com.backend.QuizApi.controllers;
 
 import com.backend.QuizApi.DTO.QuestionDTO;
 import com.backend.QuizApi.DTO.QuizTestDTO;
+import com.backend.QuizApi.entities.Question;
+import com.backend.QuizApi.entities.QuizTest;
+import com.backend.QuizApi.repositories.QuizTestRepository;
 import com.backend.QuizApi.services.Quiz.QuizTestService;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/quiz")
@@ -17,9 +22,11 @@ import java.util.ArrayList;
 public class QuizTestController {
 
     private final QuizTestService quizTestService;
+    private final QuizTestRepository quizTestRepository;
 
-    public QuizTestController(QuizTestService quizTestService) {
+    public QuizTestController(QuizTestService quizTestService, QuizTestRepository quizTestRepository) {
         this.quizTestService = quizTestService;
+        this.quizTestRepository = quizTestRepository;
     }
 
     @PostMapping()
@@ -59,6 +66,25 @@ public class QuizTestController {
     public ResponseEntity<?> getQuizWithQuestions(@PathVariable long id) {
         try {
             return new ResponseEntity<>(quizTestService.getAllQuestionsByQuiz(id), HttpStatus.OK);
+        } catch (Exception e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    /**
+     * Get just the question IDs for a quiz (useful for creating submissions)
+     */
+    @GetMapping("/{id}/question-ids")
+    public ResponseEntity<?> getQuizQuestionIds(@PathVariable long id) {
+        try {
+            QuizTest quiz = quizTestRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + id));
+            
+            List<Long> questionIds = quiz.getQuestions().stream()
+                .map(Question::getId)
+                .collect(Collectors.toList());
+            
+            return new ResponseEntity<>(Map.of("quizId", id, "questionIds", questionIds), HttpStatus.OK);
         } catch (Exception e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }

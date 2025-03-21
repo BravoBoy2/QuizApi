@@ -153,21 +153,18 @@ public class QuizTestServiceImpl implements QuizTestService {
     
     private QuestionDTO mapQuestionToDTO(Question question) {
         QuestionDTO dto = new QuestionDTO();
-        // Only include the necessary data for the frontend, not the internal ID
-        // dto.setId(question.getId()); // Removing this line to avoid exposing internal ID
+        dto.setId(question.getId());
         dto.setQuestionText(question.getQuestionText());
         dto.setType(question.getType());
         dto.setCorrectAnswer(question.getCorrectAnswer());
         
-        // Create new Option objects instead of using the entity directly
         if (question.getOptions() != null) {
             List<Option> optionDTOs = question.getOptions().stream()
                 .map(option -> {
                     Option optionDTO = new Option();
-                    // Don't set the ID to avoid exposing it
+                    optionDTO.setId(option.getId());
                     optionDTO.setAnswerText(option.getAnswerText());
                     optionDTO.setIsCorrect(option.isCorrect());
-                    // Don't set the question reference to avoid circular references
                     return optionDTO;
                 })
                 .collect(Collectors.toList());
