@@ -98,15 +98,10 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         quizResult.setTotalCorrectAnswers(correctAnswers);
         quizResult.setPercentageCorrAnswer(percentageCorrect);
         
-        QuizResult savedQuizResult = quizResultRepository.save(quizResult);
-        return new QuizResultDTO(
-                savedQuizResult.getId(),
-                savedQuizResult.getQuizTest().getId(),
-                savedQuizResult.getUser().getId(),
-                savedQuizResult.getTotalQuestions(),
-                savedQuizResult.getTotalCorrectAnswers(),
-                savedQuizResult.getPercentageCorrAnswer()
-        );
+        QuizResult savedResult = quizResultRepository.save(quizResult);
+        
+        // Use the toDTO method defined in the QuizResult entity
+        return savedResult.toDTO();
     }
     
     private boolean evaluateAnswer(Question question, QuestionAnswerDTO answer) {
@@ -168,45 +163,7 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         boolean strippedMatch = strippedCorrect.equals(strippedUser);
         logger.debug("Stripped match result: {}", strippedMatch);
         
-        // If still no match, try with very loose comparison (contains the most important words)
-        if (!strippedMatch) {
-            // Split into words and check if key words are present
-            String[] correctWords = strippedCorrect.split(" ");
-            String[] userWords = strippedUser.split(" ");
-            
-            // Filter out common small words that don't affect meaning much
-            java.util.Set<String> stopWords = java.util.Set.of("a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "be", "to", "of", "in", "that", "have", "it", "for", "on", "with");
-            java.util.Set<String> significantCorrectWords = new java.util.HashSet<>();
-            
-            // Only keep significant words (longer than 3 chars or not in stop words)
-            for (String word : correctWords) {
-                if (word.length() > 3 || !stopWords.contains(word)) {
-                    significantCorrectWords.add(word);
-                }
-            }
-            
-            // Count how many significant words from the correct answer are in the user answer
-            int matchingWords = 0;
-            for (String word : userWords) {
-                if (significantCorrectWords.contains(word)) {
-                    matchingWords++;
-                }
-            }
-            
-            // If user answer contains at least 70% of significant words from correct answer, consider it correct
-            if (!significantCorrectWords.isEmpty()) {
-                double matchRatio = (double) matchingWords / significantCorrectWords.size();
-                logger.debug("Significant word match ratio: {} ({}/{})", 
-                    String.format("%.2f", matchRatio), matchingWords, significantCorrectWords.size());
-                
-                if (matchRatio >= 0.7) {
-                    logger.debug("Accepting answer based on significant word match");
-                    return true;
-                }
-            }
-        }
-        
-        return strippedMatch;
+        return strippedMatch || exactMatch; // Return true if either match succeeds
     }
     
     private boolean evaluateSingleAnswer(Question question, QuestionAnswerDTO answer) {

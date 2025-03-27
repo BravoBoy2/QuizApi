@@ -4,15 +4,25 @@ import lombok.Data;
 
 @Data
 public class QuizResultDTO {
-    private long id;
-
+    private Long id;
+    private Long quizId;
+    private Long userId;
     private int totalQuestions;
-
     private int totalCorrectAnswers;
-
     private double percentageCorrAnswer;
 
-    private String QuizTitle;
+    // Default constructor
+    public QuizResultDTO() {
+    }
 
-    private String userName;
+    // All-args constructor - fixed to match actual fields
+    public QuizResultDTO(Long id, Long quizId, Long userId, int totalQuestions, 
+                        int totalCorrectAnswers, double percentageCorrAnswer) {
+        this.id = id;
+        this.quizId = quizId;
+        this.userId = userId;
+        this.totalQuestions = totalQuestions;
+        this.totalCorrectAnswers = totalCorrectAnswers;
+        this.percentageCorrAnswer = percentageCorrAnswer;
+    }
 }
