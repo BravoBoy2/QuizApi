@@ -3,7 +3,6 @@ package com.backend.QuizApi.controllers;
 import com.backend.QuizApi.DTO.QuestionAnswerDTO;
 import com.backend.QuizApi.DTO.QuizResultDTO;
 import com.backend.QuizApi.DTO.QuizSubmissionDTO;
-import com.backend.QuizApi.entities.Option;
 import com.backend.QuizApi.entities.QuizTest;
 import com.backend.QuizApi.enums.QuestionType;
 import com.backend.QuizApi.repositories.QuizTestRepository;
@@ -16,9 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -36,8 +33,15 @@ public class QuizSubmissionController {
         this.quizTestRepository = quizTestRepository;
     }
 
+    /**
+     * Submit a completed quiz with user answers
+     * 
+     * @param submission The quiz submission with answers
+     * @return QuizResultDTO containing scoring information
+     */
     @PostMapping("/submit")
     public ResponseEntity<?> submitQuiz(@RequestBody QuizSubmissionDTO submission) {
+        logger.info("Received quiz submission for quiz ID: {}", submission.getQuizId());
         try {
             QuizResultDTO result = quizSubmissionService.submitQuiz(submission);
             return new ResponseEntity<>(result, HttpStatus.CREATED);
@@ -47,16 +51,89 @@ public class QuizSubmissionController {
         }
     }
     
+    /**
+     * Get quiz results for a specific user
+     * 
+     * @param userId The ID of the user to get results for
+     * @return List of QuizResultDTOs for the user
+     */
     @GetMapping("/results/user/{userId}")
     public ResponseEntity<?> getUserResults(@PathVariable Long userId) {
-        return new ResponseEntity<>("User quiz results endpoint - to be implemented", HttpStatus.OK);
+        try {
+            // Validate user exists
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + userId));
+                
+            // Get all results for this user
+            List<QuizResult> userResults = quizResultRepository.findByUserId(userId);
+            
+            List<QuizResultDTO> resultDTOs = userResults.stream()
+                .map(QuizResult::QuizResultDTO)
+                .collect(Collectors.toList());
+                
+            return new ResponseEntity<>(resultDTOs, HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            logger.error("Error retrieving user quiz results: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
     
+    /**
+     * Get quiz results for a specific quiz
+     * 
+     * @param quizId The ID of the quiz to get results for
+     * @return List of QuizResultDTOs for the quiz
+     */
     @GetMapping("/results/quiz/{quizId}")
     public ResponseEntity<?> getQuizResults(@PathVariable Long quizId) {
-        return new ResponseEntity<>("Quiz results endpoint - to be implemented", HttpStatus.OK);
+        try {
+            // Validate quiz exists
+            QuizTest quiz = quizTestRepository.findById(quizId)
+                .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + quizId));
+                
+            // Get all results for this quiz
+            List<QuizResult> quizResults = quizResultRepository.findByQuizTestId(quizId);
+            
+            List<QuizResultDTO> resultDTOs = quizResults.stream()
+                .map(QuizResult::QuizResultDTO)
+                .collect(Collectors.toList());
+                
+            return new ResponseEntity<>(resultDTOs, HttpStatus.OK);
+        } catch (EntityNotFoundException e) {
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            logger.error("Error retrieving quiz results: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
+    /**
+     * Get all quiz results across all users (for admin)
+     * 
+     * @return List of QuizResultDTOs for all users
+     */
+    @GetMapping("/results")
+    public ResponseEntity<?> getAllResults() {
+        try {
+            // Implement actual logic to retrieve all results
+            List<QuizResult> allResults = quizResultRepository.findAll();
+            
+            List<QuizResultDTO> resultDTOs = allResults.stream()
+                .map(QuizResult::QuizResultDTO)
+                .collect(Collectors.toList());
+                
+            return new ResponseEntity<>(resultDTOs, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error retrieving all quiz results: ", e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Generate a template for quiz submission
+     */
     @GetMapping("/template/{quizId}")
     public ResponseEntity<?> getSubmissionTemplate(@PathVariable Long quizId) {
         try {
@@ -71,6 +148,7 @@ public class QuizSubmissionController {
                     if (q.getType() == QuestionType.TEXT) {
                         answerTemplate.setTextAnswer("Your answer here");
                     } else {
+                        // For MCQ or SINGLE, provide empty list that user should fill
                         answerTemplate.setSelectedOptionIds(new ArrayList<>());
                     }
                     
@@ -80,84 +158,12 @@ public class QuizSubmissionController {
             
             QuizSubmissionDTO template = new QuizSubmissionDTO();
             template.setQuizId(quizId);
-            template.setUserId(1L);
+            template.setUserId(1L); // This is a placeholder - user should replace with actual user ID
             template.setAnswers(templateAnswers);
             
             return new ResponseEntity<>(template, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
-    }
-
-    @GetMapping("/test-template/{quizId}")
-    public ResponseEntity<?> getDetailedSubmissionTemplate(@PathVariable Long quizId) {
-        try {
-            QuizTest quiz = quizTestRepository.findById(quizId)
-                .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + quizId));
-            
-            // Build quiz info structure
-            Map<String, Object> quizInfo = new HashMap<>();
-            quizInfo.put("quizId", quiz.getId());
-            quizInfo.put("quizTitle", quiz.getTitle());
-            
-            // Add question details
-            List<Map<String, Object>> questionsInfo = quiz.getQuestions().stream()
-                .map(q -> {
-                    Map<String, Object> questionInfo = new HashMap<>();
-                    questionInfo.put("questionId", q.getId());
-                    questionInfo.put("questionText", q.getQuestionText());
-                    questionInfo.put("questionType", q.getType());
-                    
-                    if (q.getType() != QuestionType.TEXT) {
-                        questionInfo.put("options", q.getOptions().stream()
-                            .map(opt -> {
-                                Map<String, Object> optionInfo = new HashMap<>();
-                                optionInfo.put("optionId", opt.getId());
-                                optionInfo.put("optionText", opt.getAnswerText());
-                                optionInfo.put("isCorrect", opt.isCorrect());
-                                return optionInfo;
-                            })
-                            .collect(Collectors.toList()));
-                    } else {
-                        questionInfo.put("correctAnswer", q.getCorrectAnswer());
-                    }
-                    
-                    return questionInfo;
-                })
-                .collect(Collectors.toList());
-            
-            quizInfo.put("questions", questionsInfo);
-            
-            // Create template with correct answers
-            List<QuestionAnswerDTO> templateAnswers = quiz.getQuestions().stream()
-                .map(q -> {
-                    QuestionAnswerDTO answerTemplate = new QuestionAnswerDTO();
-                    answerTemplate.setQuestionId(q.getId());
-                    
-                    if (q.getType() == QuestionType.TEXT) {
-                        answerTemplate.setTextAnswer(q.getCorrectAnswer());
-                    } else {
-                        answerTemplate.setSelectedOptionIds(q.getOptions().stream()
-                            .filter(Option::isCorrect)
-                            .map(Option::getId)
-                            .collect(Collectors.toList()));
-                    }
-                    
-                    return answerTemplate;
-                })
-                .collect(Collectors.toList());
-            
-            QuizSubmissionDTO template = new QuizSubmissionDTO();
-            template.setQuizId(quizId);
-            template.setUserId(1L);
-            template.setAnswers(templateAnswers);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("quizStructure", quizInfo);
-            response.put("submissionTemplate", template);
-            
-            return new ResponseEntity<>(response, HttpStatus.OK);
-        } catch (Exception e) {
+            logger.error("Error generating submission template: ", e);
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }

@@ -1,59 +1,44 @@
 package com.backend.QuizApi.entities;
 
 import com.backend.QuizApi.DTO.QuizResultDTO;
-
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "quiz_results")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class QuizResult {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
+    private long id;
+
+    private int totalQuestions;
+
+    private int totalCorrectAnswers;
+
+    private double percentageCorrAnswer;
+
     @ManyToOne
-    @JoinColumn(name = "quiz_id")
+    @JoinColumn(name = "quiz_test_id")
     private QuizTest quizTest;
-    
+
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
-    
-    private int totalQuestions;
-    
-    private int totalCorrectAnswers;
-    
-    private double percentageCorrAnswer;
-    
-    private LocalDateTime createdAt = LocalDateTime.now();
-    
-    /**
-     * Converts this entity to a DTO for API responses
-     * @return QuizResultDTO representation of this entity
-     */
-    public QuizResultDTO toDTO() {
-        return new QuizResultDTO(
-            this.id,
-            this.quizTest.getId(),
-            this.user.getId(),
-            this.totalQuestions,
-            this.totalCorrectAnswers,
-            this.percentageCorrAnswer
-        );
+
+
+    public QuizResultDTO QuizResultDTO() {
+        QuizResultDTO quizResultDTO = new QuizResultDTO();
+
+        quizResultDTO.setId(id);
+        quizResultDTO.setQuizId(quizTest.getId());
+        quizResultDTO.setUserId(user.getId());
+        quizResultDTO.setTotalQuestions(totalQuestions);
+        quizResultDTO.setTotalCorrectAnswers(totalCorrectAnswers);
+        quizResultDTO.setPercentageCorrAnswer(percentageCorrAnswer);
+        quizResultDTO.setQuizTitle(quizTest.getTitle());
+        quizResultDTO.setUserName(user.getName());
+
+        return quizResultDTO;
     }
 }

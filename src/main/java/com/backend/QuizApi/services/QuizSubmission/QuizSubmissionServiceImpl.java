@@ -44,6 +44,8 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
     @Override
     @Transactional
     public QuizResultDTO submitQuiz(QuizSubmissionDTO submission) {
+        logger.info("Processing quiz submission for quiz ID: {}", submission.getQuizId());
+        
         // Fetch quiz and user
         QuizTest quiz = quizTestRepository.findById(submission.getQuizId())
                 .orElseThrow(() -> new EntityNotFoundException("Quiz not found with ID: " + submission.getQuizId()));
@@ -63,6 +65,19 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         Map<Long, Question> questionsMap = questions.stream()
                 .collect(Collectors.toMap(Question::getId, q -> q));
         
+        // Log question IDs to help with debugging
+        logger.info("Question IDs in quiz {}: {}", quiz.getId(), questionsMap.keySet());
+        logger.info("User submitted answers for question IDs: {}", 
+                submission.getAnswers().stream()
+                        .map(QuestionAnswerDTO::getQuestionId)
+                        .collect(Collectors.toList()));
+        
+        // Map options by ID for efficient lookup
+        Map<Long, Option> optionsMap = questions.stream()
+                .filter(q -> q.getOptions() != null)
+                .flatMap(q -> q.getOptions().stream())
+                .collect(Collectors.toMap(Option::getId, o -> o));
+        
         // Evaluate user answers
         int correctAnswers = 0;
         int answeredQuestions = 0;
@@ -80,17 +95,22 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
             
             if (isCorrect) {
                 correctAnswers++;
+                logger.info("Question ID {} answered correctly", answer.getQuestionId());
+            } else {
+                logger.info("Question ID {} answered incorrectly", answer.getQuestionId());
             }
         }
         
+        // If no questions were answered, fail gracefully
         if (answeredQuestions == 0) {
             throw new IllegalArgumentException("None of the submitted question IDs match questions in this quiz. " +
                     "Quiz has questions with IDs: " + questionsMap.keySet());
         }
         
-        // Calculate score and create result
+        // Calculate score based on answered questions
         double percentageCorrect = (double) correctAnswers / totalQuestions * 100;
         
+        // Create and save quiz result
         QuizResult quizResult = new QuizResult();
         quizResult.setQuizTest(quiz);
         quizResult.setUser(user);
@@ -99,13 +119,18 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         quizResult.setPercentageCorrAnswer(percentageCorrect);
         
         QuizResult savedResult = quizResultRepository.save(quizResult);
+        logger.info("Quiz result saved: correctAnswers={}, totalQuestions={}, percentage={}", 
+                correctAnswers, totalQuestions, percentageCorrect);
         
-        // Use the toDTO method defined in the QuizResult entity
-        return savedResult.toDTO();
+        // Return result DTO
+        return savedResult.QuizResultDTO();
     }
     
+    // Simplified method signature since we don't use the optionsMap anymore
     private boolean evaluateAnswer(Question question, QuestionAnswerDTO answer) {
         QuestionType type = question.getType();
+        
+        logger.info("Evaluating {} question: {}", type, question.getQuestionText());
         
         if (type == QuestionType.TEXT) {
             return evaluateTextAnswer(question, answer);
@@ -113,8 +138,10 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
             return evaluateSingleAnswer(question, answer);
         } else if (type == QuestionType.MCQ) {
             return evaluateMCQAnswer(question, answer);
+        } else {
+            logger.warn("Unknown question type: {}", type);
+            return false;
         }
-        return false;
     }
     
     private boolean evaluateTextAnswer(Question question, QuestionAnswerDTO answer) {
@@ -122,48 +149,17 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         String correctAnswer = question.getCorrectAnswer();
         String userAnswer = answer.getTextAnswer();
         
-        // Add detailed logging
-        logger.debug("TEXT Question ID: {}, Text: \"{}\"", question.getId(), question.getQuestionText());
-        logger.debug("Correct answer (raw): \"{}\"", correctAnswer);
-        logger.debug("User answer (raw): \"{}\"", userAnswer);
+        logger.debug("Text question - Correct answer: '{}', User answer: '{}'", correctAnswer, userAnswer);
         
-        // Handle null values
-        if (correctAnswer == null) {
-            logger.warn("Question {} has null correctAnswer", question.getId());
+        if (correctAnswer == null || userAnswer == null) {
+            logger.debug("Text question - Null answer detected");
             return false;
         }
         
-        if (userAnswer == null) {
-            logger.debug("User provided null answer for question {}", question.getId());
-            return false;
-        }
-        
-        // Normalize answers for comparison (trim, remove extra spaces, case-insensitive)
-        String normalizedCorrect = correctAnswer.trim().toLowerCase().replaceAll("\\s+", " ");
-        String normalizedUser = userAnswer.trim().toLowerCase().replaceAll("\\s+", " ");
-        
-        logger.debug("Normalized correct: \"{}\"", normalizedCorrect);
-        logger.debug("Normalized user: \"{}\"", normalizedUser);
-        
-        // First try exact match after normalization
-        boolean exactMatch = normalizedCorrect.equals(normalizedUser);
-        logger.debug("Exact match result: {}", exactMatch);
-        
-        if (exactMatch) {
-            return true;
-        }
-        
-        // Try with punctuation and special chars removed
-        String strippedCorrect = normalizedCorrect.replaceAll("[^a-z0-9 ]", "");
-        String strippedUser = normalizedUser.replaceAll("[^a-z0-9 ]", "");
-        
-        logger.debug("Stripped correct: \"{}\"", strippedCorrect);
-        logger.debug("Stripped user: \"{}\"", strippedUser);
-        
-        boolean strippedMatch = strippedCorrect.equals(strippedUser);
-        logger.debug("Stripped match result: {}", strippedMatch);
-        
-        return strippedMatch || exactMatch; // Return true if either match succeeds
+        // Normalize answers for comparison (trim and case-insensitive)
+        boolean isCorrect = correctAnswer.trim().equalsIgnoreCase(userAnswer.trim());
+        logger.debug("Text answer evaluation result: {}", isCorrect);
+        return isCorrect;
     }
     
     private boolean evaluateSingleAnswer(Question question, QuestionAnswerDTO answer) {
@@ -171,7 +167,12 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         List<Long> selectedOptionIds = answer.getSelectedOptionIds();
         List<Option> questionOptions = question.getOptions();
         
+        logger.debug("Single question - Options: {}, Selected: {}", 
+                questionOptions.stream().map(Option::getId).collect(Collectors.toList()),
+                selectedOptionIds);
+        
         if (selectedOptionIds == null || selectedOptionIds.size() != 1) {
+            logger.debug("Single question - Invalid number of selections");
             return false;
         }
         
@@ -180,10 +181,13 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         // Find the selected option directly from the question's options list
         for (Option option : questionOptions) {
             if (option.getId() == selectedOptionId) {
-                return option.isCorrect();
+                boolean isCorrect = option.isCorrect();
+                logger.debug("Single answer option {} is correct: {}", selectedOptionId, isCorrect);
+                return isCorrect;
             }
         }
         
+        logger.debug("Single question - Selected option not found");
         return false;
     }
     
@@ -192,11 +196,17 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
         List<Long> selectedOptionIds = answer.getSelectedOptionIds();
         List<Option> questionOptions = question.getOptions();
         
+        logger.debug("MCQ question - Options: {}, Selected: {}", 
+                questionOptions.stream().map(o -> o.getId() + ":" + o.isCorrect()).collect(Collectors.toList()),
+                selectedOptionIds);
+        
         if (selectedOptionIds == null || selectedOptionIds.isEmpty()) {
+            logger.debug("MCQ question - No options selected");
             return false;
         }
         
         if (questionOptions == null || questionOptions.isEmpty()) {
+            logger.debug("MCQ question - No options available");
             return false;
         }
         
@@ -206,10 +216,14 @@ public class QuizSubmissionServiceImpl implements QuizSubmissionService {
                 .map(Option::getId)
                 .collect(Collectors.toSet());
         
+        logger.debug("MCQ question - Correct options: {}", correctOptionIds);
+        
         // Convert selected IDs to set for comparison
         Set<Long> selectedIds = Set.copyOf(selectedOptionIds);
         
         // User must select all correct options and no incorrect ones
-        return selectedIds.equals(correctOptionIds);
+        boolean isCorrect = selectedIds.equals(correctOptionIds);
+        logger.debug("MCQ answer evaluation result: {}", isCorrect);
+        return isCorrect;
     }
 }
