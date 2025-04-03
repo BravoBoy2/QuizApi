@@ -3,9 +3,13 @@ package com.backend.QuizApi.controllers;
 import com.backend.QuizApi.DTO.QuestionAnswerDTO;
 import com.backend.QuizApi.DTO.QuizResultDTO;
 import com.backend.QuizApi.DTO.QuizSubmissionDTO;
+import com.backend.QuizApi.entities.QuizResult;
 import com.backend.QuizApi.entities.QuizTest;
+import com.backend.QuizApi.entities.User;
 import com.backend.QuizApi.enums.QuestionType;
+import com.backend.QuizApi.repositories.QuizResultRepository;
 import com.backend.QuizApi.repositories.QuizTestRepository;
+import com.backend.QuizApi.repositories.UserRepository;
 import com.backend.QuizApi.services.QuizSubmission.QuizSubmissionService;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
@@ -26,11 +30,18 @@ public class QuizSubmissionController {
     private final QuizSubmissionService quizSubmissionService;
     private final QuizTestRepository quizTestRepository;
     private static final Logger logger = LoggerFactory.getLogger(QuizSubmissionController.class);
+    private final UserRepository userRepository;
+    private final QuizResultRepository quizResultRepository;
+
 
     public QuizSubmissionController(QuizSubmissionService quizSubmissionService, 
-                                    QuizTestRepository quizTestRepository) {
+                                    QuizTestRepository quizTestRepository,
+                                    UserRepository userRepository,
+                                    QuizResultRepository quizResultRepository) {
         this.quizSubmissionService = quizSubmissionService;
         this.quizTestRepository = quizTestRepository;
+        this.userRepository = userRepository;
+        this.quizResultRepository = quizResultRepository;
     }
 
     /**
