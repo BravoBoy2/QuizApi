@@ -79,6 +79,7 @@ public class QuizSubmissionController {
             List<QuizResult> userResults = quizResultRepository.findByUserId(userId);
             
             List<QuizResultDTO> resultDTOs = userResults.stream()
+                .filter(result -> result.getQuizTest() != null) // Skip results with null quizTest
                 .map(QuizResult::QuizResultDTO)
                 .collect(Collectors.toList());
                 
@@ -128,10 +129,10 @@ public class QuizSubmissionController {
     @GetMapping("/results")
     public ResponseEntity<?> getAllResults() {
         try {
-            // Implement actual logic to retrieve all results
             List<QuizResult> allResults = quizResultRepository.findAll();
             
             List<QuizResultDTO> resultDTOs = allResults.stream()
+                .filter(result -> result.getQuizTest() != null) // Skip results with null quizTest
                 .map(QuizResult::QuizResultDTO)
                 .collect(Collectors.toList());
                 
